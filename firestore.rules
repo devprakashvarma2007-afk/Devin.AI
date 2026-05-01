@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidString(val, min, max) {
+      return val is string && val.size() >= min && val.size() <= max;
+    }
+
+    function isRecent(timestamp) {
+      return timestamp is timestamp && 
+             timestamp > duration.value(5, 'm') && 
+             timestamp < request.time + duration.value(5, 'm');
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidMessage(msg) {
+      return msg.keys().hasAll(['id', 'role', 'content', 'timestamp']) &&
+             msg.role in ['user', 'assistant', 'system'] &&
+             msg.content is string &&
+             msg.content.size() < 100000;
+    }
+
+    function isValidChat(data) {
+      return data.messages is list &&
+             data.messages.size() < 500 &&
+             (data.title == null || isValidString(data.title, 0, 100)) &&
+             (data.mode == null || data.mode in ['chat', 'image', 'code']) &&
+             (data.model == null || data.model is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      match /chats/{chatId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidChat(request.resource.data);
+        allow update: if isOwner(userId) && isValidChat(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

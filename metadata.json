@@ -1,0 +1,5 @@
+{
+  "name": "Devin.AI",
+  "description": "Devin.AI: A world-class AI software engineer and creative companion developed by Dev Prakash Verma. Features real-time streaming, multimodal support, and advanced reasoning capabilities.",
+  "requestFramePermissions": ["microphone"]
+}
